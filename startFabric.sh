@@ -30,7 +30,7 @@ CC_SRC_LANGUAGE=`echo "$CC_SRC_LANGUAGE" | tr [:upper:] [:lower:]`
 #   echo Finished compiling Java code
 if [ "$CC_SRC_LANGUAGE" = "javascript" ]; then
     CC_RUNTIME_LANGUAGE=node # chaincode runtime language is node.js
-    CC_SRC_PATH=/opt/gopath/src/github.com/hyperledger/fabric-samples/chaincode/fabcar/javascript
+    CC_SRC_PATH=/opt/gopath/src/github.com/navaem/fabvote/javascript
 # elif [ "$CC_SRC_LANGUAGE" = "typescript" ]; then
 #     CC_RUNTIME_LANGUAGE=node # chaincode runtime language is node.js
 #     CC_SRC_PATH=/opt/gopath/src/github.com/hyperledger/fabric-samples/chaincode/fabcar/typescript
@@ -46,12 +46,17 @@ else
     exit 1
 fi
 
+if [ !-d "./bin"]; then
+  #download bins
+  echo Downloading platform specific fabric binaries
+  curl -sSL https://bit.ly/2ysbOFE | bash -s
+fi
 
 # clean the keystore
 rm -rf ./hfc-key-store
 
 # launch network; create channel and join peer to channel
-pushd ../first-network
+pushd ./first-network
 echo y | ./byfn.sh down
 echo y | ./byfn.sh up -a -n -s couchdb
 popd

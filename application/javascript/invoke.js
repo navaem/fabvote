@@ -39,7 +39,7 @@ async function main() {
 
         // Submit the specified transaction.
         // castVote transaction - requires 3 argument, ex: ('castVote', 'EL0', 'Abraham Lincoln')
-        await contract.submitTransaction('castVote', 'EL0', 'Abraham Lincoln');
+        await contract.submitTransaction('castVote', 'EL0', 'Woodrow Wilson');
         console.log('Transaction has been submitted');
 
         // Disconnect from the gateway.

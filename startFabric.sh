@@ -46,10 +46,12 @@ else
     exit 1
 fi
 
-if [ !-d "./bin"]; then
+if [[ ! -d "bin" ]]; then
   #download bins
   echo Downloading platform specific fabric binaries
   curl -sSL https://bit.ly/2ysbOFE | bash -s
+else 
+  echo bin exists
 fi
 
 # clean the keystore
@@ -67,6 +69,10 @@ ORG1_TLS_ROOTCERT_FILE=${CONFIG_ROOT}/crypto/peerOrganizations/org1.example.com/
 ORG2_MSPCONFIGPATH=${CONFIG_ROOT}/crypto/peerOrganizations/org2.example.com/users/Admin@org2.example.com/msp
 ORG2_TLS_ROOTCERT_FILE=${CONFIG_ROOT}/crypto/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt
 ORDERER_TLS_ROOTCERT_FILE=${CONFIG_ROOT}/crypto/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem
+
+#add our files to the cli docker instance
+docker exec cli mkdir -p ${CC_SRC_PATH}
+docker cp javascript/. cli:$CC_SRC_PATH
 
 PEER0_ORG1="docker exec
 -e CORE_PEER_LOCALMSPID=Org1MSP
@@ -114,25 +120,25 @@ peer
 
 echo "Packaging smart contract on peer0.org1.example.com"
 ${PEER0_ORG1} lifecycle chaincode package \
-  fabcar.tar.gz \
+  fabvote.tar.gz \
   --path "$CC_SRC_PATH" \
   --lang "$CC_RUNTIME_LANGUAGE" \
-  --label fabcarv1
+  --label fabvotev1
 
 echo "Installing smart contract on peer0.org1.example.com"
 ${PEER0_ORG1} lifecycle chaincode install \
-  fabcar.tar.gz
+  fabvote.tar.gz
 
 echo "Installing smart contract on peer1.org1.example.com"
 ${PEER1_ORG1} lifecycle chaincode install \
-  fabcar.tar.gz
+  fabvote.tar.gz
 
 echo "Determining package ID for smart contract on peer0.org1.example.com"
-REGEX='Package ID: (.*), Label: fabcarv1'
+REGEX='Package ID: (.*), Label: fabvotev1'
 if [[ `${PEER0_ORG1} lifecycle chaincode queryinstalled` =~ $REGEX ]]; then
   PACKAGE_ID_ORG1=${BASH_REMATCH[1]}
 else
-  echo Could not find package ID for fabcarv1 chaincode on peer0.org1.example.com
+  echo Could not find package ID for fabvotev1 chaincode on peer0.org1.example.com
   exit 1
 fi
 
@@ -140,7 +146,7 @@ echo "Approving smart contract for org1"
 ${PEER0_ORG1} lifecycle chaincode approveformyorg \
   --package-id ${PACKAGE_ID_ORG1} \
   --channelID mychannel \
-  --name fabcar \
+  --name fabvote \
   --version 1.0 \
   --signature-policy "AND('Org1MSP.member','Org2MSP.member')" \
   --sequence 1 \
@@ -148,23 +154,23 @@ ${PEER0_ORG1} lifecycle chaincode approveformyorg \
 
 echo "Packaging smart contract on peer0.org2.example.com"
 ${PEER0_ORG2} lifecycle chaincode package \
-  fabcar.tar.gz \
+  fabvote.tar.gz \
   --path "$CC_SRC_PATH" \
   --lang "$CC_RUNTIME_LANGUAGE" \
-  --label fabcarv1
+  --label fabvotev1
 
 echo "Installing smart contract on peer0.org2.example.com"
-${PEER0_ORG2} lifecycle chaincode install fabcar.tar.gz
+${PEER0_ORG2} lifecycle chaincode install fabvote.tar.gz
 
 echo "Installing smart contract on peer1.org2.example.com"
-${PEER1_ORG2} lifecycle chaincode install fabcar.tar.gz
+${PEER1_ORG2} lifecycle chaincode install fabvote.tar.gz
 
 echo "Determining package ID for smart contract on peer0.org2.example.com"
-REGEX='Package ID: (.*), Label: fabcarv1'
+REGEX='Package ID: (.*), Label: fabvotev1'
 if [[ `${PEER0_ORG2} lifecycle chaincode queryinstalled` =~ $REGEX ]]; then
   PACKAGE_ID_ORG2=${BASH_REMATCH[1]}
 else
-  echo Could not find package ID for fabcarv1 chaincode on peer0.org2.example.com
+  echo Could not find package ID for fabvotev1 chaincode on peer0.org2.example.com
   exit 1
 fi
 
@@ -172,7 +178,7 @@ echo "Approving smart contract for org2"
 ${PEER0_ORG2} lifecycle chaincode approveformyorg \
   --package-id ${PACKAGE_ID_ORG2} \
   --channelID mychannel \
-  --name fabcar \
+  --name fabvote \
   --version 1.0 \
   --signature-policy "AND('Org1MSP.member','Org2MSP.member')" \
   --sequence 1 \
@@ -181,7 +187,7 @@ ${PEER0_ORG2} lifecycle chaincode approveformyorg \
 echo "Committing smart contract"
 ${PEER0_ORG1} lifecycle chaincode commit \
   --channelID mychannel \
-  --name fabcar \
+  --name fabvote \
   --version 1.0 \
   --signature-policy "AND('Org1MSP.member','Org2MSP.member')" \
   --sequence 1 \
@@ -195,7 +201,7 @@ echo "Submitting initLedger transaction to smart contract on mychannel"
 # echo "The transaction is sent to all of the peers so that chaincode is built before receiving the following requests"
 ${PEER0_ORG1} chaincode invoke \
   -C mychannel \
-  -n fabcar \
+  -n fabvote \
   -c '{"function":"initLedger","Args":[]}' \
   --waitForEvent \
   --waitForEventTimeout 300s \
@@ -208,14 +214,14 @@ ${PEER0_ORG1} chaincode invoke \
 # the chaincode across the remaining peers.
 ${PEER1_ORG1} chaincode query \
   -C mychannel \
-  -n fabcar \
-  -c '{"function":"queryAllCars","Args":[]}' \
+  -n fabvote \
+  -c '{"function":"queryAllElections","Args":[]}' \
   --peerAddresses peer1.org1.example.com:8051 \
   --tlsRootCertFiles ${ORG1_TLS_ROOTCERT_FILE}
 ${PEER1_ORG2} chaincode query \
   -C mychannel \
-  -n fabcar \
-  -c '{"function":"queryAllCars","Args":[]}' \
+  -n fabvote \
+  -c '{"function":"queryAllElections","Args":[]}' \
   --peerAddresses peer1.org2.example.com:10051 \
   --tlsRootCertFiles ${ORG2_TLS_ROOTCERT_FILE}
 
